@@ -1,11 +1,15 @@
 package configure
 
 type Server struct {
-	Listen   string
+	// Listen address
+	Listen string
+	// TLS certificate, use h2c if not set
 	CertFile string
 	KeyFile  string
-	Router   string
-	
+	// Router path
+	Router string
+	// quic or h2
+	Quic bool
 }
 
 func LoadServers(filename string) (cnfs []Server, e error) {

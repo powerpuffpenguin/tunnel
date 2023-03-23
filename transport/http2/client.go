@@ -19,18 +19,17 @@ type Client struct {
 	from, to Addr
 }
 
-func NewClient(rawURL, from, to string) (c *Client, e error) {
-	u, e := url.ParseRequestURI(rawURL)
-	if e != nil {
-		return
-	}
+func NewClient(rawURL,
+	from, to string,
+	insecureSkipVerify, h2c bool,
+) (c *Client, e error) {
 	var (
 		transport http.RoundTripper
 		addr      = Addr{
 			addr: from,
 		}
 	)
-	if u.Scheme == `http` {
+	if h2c {
 		addr.network = `h2c`
 		transport = &http2.Transport{
 			DialTLS: func(network, addr string, cfg *tls.Config) (net.Conn, error) {
@@ -40,14 +39,18 @@ func NewClient(rawURL, from, to string) (c *Client, e error) {
 		}
 	} else {
 		addr.network = `h2`
-		transport = &http2.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+		transport = &http2.Transport{}
+		if insecureSkipVerify {
+			transport = &http2.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: insecureSkipVerify,
+				},
+			}
 		}
+
 	}
 
-	u, e = url.ParseRequestURI(to)
+	u, e := url.ParseRequestURI(to)
 	if e != nil {
 		return
 	}
@@ -69,9 +72,13 @@ func NewClient(rawURL, from, to string) (c *Client, e error) {
 	}
 	return
 }
+
 func (c *Client) Connect() (conn net.Conn, e error) {
 	body, w := io.Pipe()
-	resp, e := c.connect(body)
+	resp, e := Connect(&c.client,
+		c.rawURL, c.to.addr,
+		body,
+	)
 	if e != nil {
 		w.Close()
 		return
@@ -85,13 +92,16 @@ func (c *Client) Connect() (conn net.Conn, e error) {
 	return
 }
 
-func (c *Client) connect(body io.Reader) (resp *http.Response, e error) {
-	req, e := http.NewRequest(http.MethodPost, c.rawURL, body)
+func Connect(client *http.Client,
+	rawURL, to string,
+	body io.Reader,
+) (resp *http.Response, e error) {
+	req, e := http.NewRequest(http.MethodPost, rawURL, body)
 	if e != nil {
 		return
 	}
-	req.Header.Set(`target`, base64.RawURLEncoding.EncodeToString([]byte(c.to.addr)))
-	resp, e = c.client.Do(req)
+	req.Header.Set(`target`, base64.RawURLEncoding.EncodeToString([]byte(to)))
+	resp, e = client.Do(req)
 	if e != nil {
 		return
 	}
@@ -129,9 +139,20 @@ func (a Addr) String() string {
 type clientConn struct {
 	r                     io.ReadCloser
 	w                     io.WriteCloser
-	localAddr, remoteAddr Addr
+	localAddr, remoteAddr net.Addr
 }
 
+func NewConn(r io.ReadCloser,
+	w io.WriteCloser,
+	localAddr, remoteAddr net.Addr,
+) net.Conn {
+	return &clientConn{
+		r:          r,
+		w:          w,
+		localAddr:  localAddr,
+		remoteAddr: remoteAddr,
+	}
+}
 func (c *clientConn) Read(b []byte) (n int, err error) {
 	n, err = c.r.Read(b)
 	return

@@ -1,12 +1,16 @@
 package configure
 
 type Tunnel struct {
-	// tunnel server url
+	// Tunnel server URL
 	URL string
-	// listen local address
+	// Listen on local address
 	From string
-	// local to remote url
+	// Forwarded server connection address
 	To string
+	// Do not verify tls certificate
+	InsecureSkipVerify bool
+	// Use quic to connect to the server URL
+	Quic               bool
 }
 
 func LoadTunnel(filename string) (cnfs []Tunnel, e error) {

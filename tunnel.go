@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"net/url"
 	"path/filepath"
 	"sync"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/powerpuffpenguin/tunnel/configure"
 	"github.com/powerpuffpenguin/tunnel/pool"
 	"github.com/powerpuffpenguin/tunnel/transport/http2"
+	"github.com/powerpuffpenguin/tunnel/transport/http3"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +60,30 @@ type Tunnel struct {
 }
 
 func NewTunnel(cnf *configure.Tunnel) (t *Tunnel, e error) {
-	c, e := http2.NewClient(cnf.URL, cnf.From, cnf.To)
+	var c Client
+	u, e := url.ParseRequestURI(cnf.URL)
+	if e != nil {
+		return
+	}
+	quic := false
+	if u.Scheme == `https` {
+		if cnf.Quic {
+			c, e = http3.NewClient(cnf.URL,
+				cnf.From, cnf.To,
+				cnf.InsecureSkipVerify,
+			)
+			quic = true
+		} else {
+			c, e = http2.NewClient(cnf.URL,
+				cnf.From, cnf.To,
+				cnf.InsecureSkipVerify, false,
+			)
+		}
+	} else if u.Scheme == `http` {
+		c, e = http2.NewClient(cnf.URL, cnf.From, cnf.To,
+			cnf.InsecureSkipVerify, true,
+		)
+	}
 	if e != nil {
 		return
 	}
@@ -67,7 +92,11 @@ func NewTunnel(cnf *configure.Tunnel) (t *Tunnel, e error) {
 	if e != nil {
 		return
 	}
-	log.Println(`tunnel`, cnf.URL, cnf.From, `->`, cnf.To)
+	if quic {
+		log.Println(`tunnel quic`, u.String(), cnf.From, `->`, cnf.To)
+	} else {
+		log.Println(`tunnel`, u.String(), cnf.From, `->`, cnf.To)
+	}
 
 	t = &Tunnel{
 		l:      l,

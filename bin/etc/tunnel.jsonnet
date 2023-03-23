@@ -1,10 +1,17 @@
 local Options = {
-    URL: "http://127.0.0.1:9000/dev/api/v1/echo",
+  // Tunnel server URL
+  URL: "https://127.0.0.1:9000/dev/api/v1/echo",
+  // Do not verify tls certificate
+  InsecureSkipVerify: true,
+  // Use quic to connect to the server URL
+  Quic: true,
 };
-local to="127.0.0.1";
+local to="ssh.king011.com";
 [
   Options {
+    // Listen on local address
     From: ':29444',
+    // Forwarded server connection address
     To: 'tcp://'+to+':9444',
   },
   Options {

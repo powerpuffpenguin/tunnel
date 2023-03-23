@@ -7,6 +7,7 @@ import (
 
 	"github.com/powerpuffpenguin/tunnel/configure"
 	"github.com/powerpuffpenguin/tunnel/transport/http2"
+	"github.com/powerpuffpenguin/tunnel/transport/http3"
 	"github.com/spf13/cobra"
 )
 
@@ -51,17 +52,27 @@ func server() *cobra.Command {
 
 type Server interface {
 	Serve() error
-	TLS() bool
+	Close() error
 }
 
 func NewServer(cnf *configure.Server) (s Server, e error) {
-	s, e = http2.New(cnf.Listen, cnf.CertFile, cnf.KeyFile, cnf.Router)
-	if e != nil {
-		return
-	}
-	if s.TLS() {
+	if cnf.CertFile == `` || cnf.KeyFile == `` {
+		s, e = http2.New(cnf.Listen, cnf.CertFile, cnf.KeyFile, cnf.Router)
+		if e != nil {
+			return
+		}
 		log.Println(`h2c listen`, cnf.Listen, cnf.Router)
+	} else if cnf.Quic {
+		s, e = http3.New(cnf.Listen, cnf.CertFile, cnf.KeyFile, cnf.Router)
+		if e != nil {
+			return
+		}
+		log.Println(`quic listen`, cnf.Listen, cnf.Router)
 	} else {
+		s, e = http2.New(cnf.Listen, cnf.CertFile, cnf.KeyFile, cnf.Router)
+		if e != nil {
+			return
+		}
 		log.Println(`h2 listen`, cnf.Listen, cnf.Router)
 	}
 	return

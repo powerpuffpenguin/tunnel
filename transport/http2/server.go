@@ -34,7 +34,7 @@ func New(listen, certFile, keyFile, router string) (s *Server, e error) {
 		http2Server http2.Server
 		mux         = http.NewServeMux()
 	)
-	mux.HandleFunc(router, routerF)
+	mux.HandleFunc(router, Router)
 	if s.h2c {
 		s.server.Handler = h2c.NewHandler(mux, &http2Server)
 	} else {
@@ -56,10 +56,16 @@ func (s *Server) Serve() (e error) {
 	}
 	return
 }
-func (s *Server) TLS() bool {
-	return !s.h2c
+
+func (s *Server) Close() (e error) {
+	e0 := s.server.Close()
+	e1 := s.l.Close()
+	if e0 != nil {
+		return e0
+	}
+	return e1
 }
-func routerF(w http.ResponseWriter, r *http.Request) {
+func Router(w http.ResponseWriter, r *http.Request) {
 	if r.ProtoMajor < 2 || r.Method != http.MethodPost || r.Body == nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
