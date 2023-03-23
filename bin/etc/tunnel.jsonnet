@@ -6,7 +6,7 @@ local Options = {
   // Use quic to connect to the server URL
   Quic: true,
 };
-local to="ssh.king011.com";
+local to="127.0.0.1";
 [
   Options {
     // Listen on local address

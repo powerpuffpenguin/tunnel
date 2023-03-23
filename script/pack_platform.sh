@@ -119,6 +119,8 @@ fi
 source=(
     "$target"
     etc
+    test.key
+    test.crt
 )
 other=()
 if [[ "${GOOS}_$GOARCH" == "linux_amd64" ]];then
